@@ -5,6 +5,8 @@ import h5py
 import tensorflow as tf
 import os
 import glob
+from PIL import Image
+import math
 """
 :Author: 陈浩
 :Date: 2018/11/23
@@ -107,7 +109,6 @@ def preprocess(path, scale=3):
     image = imread(path, is_grayscale=True)
     label_ = modcrop(image, scale)
     # normalized
-    image = image / 255
     label_ = label_ / 255
 
     """
@@ -171,6 +172,7 @@ def imread(path, is_grayscale=True):
     :return: YCbCr 图像
     """
     if is_grayscale:
+        # flatten: the color layers into a single gray-scale layer
         return scipy.misc.imread(path, mode="YCbCr", flatten=True).astype(np.float)
     else:
         return scipy.misc.imread(path, mode="YCbCr").astype(np.float)
@@ -203,4 +205,26 @@ def modcrop(image, scale=3):
         w = w - np.mod(w, scale)
         label_ = image[:h, :w]
     return label_
+
+
+def img_psnr(img1, img2):
+    """
+    :param img1: 源图片路径
+    :param img2: 生成图片路径
+    :return: PSNR
+    """
+    img1_arr = np.array(Image.open(img1), dtype=float)
+    img2_arr = np.array(Image.open(img2), dtype=float)
+    height = img1_arr.shape[0]
+    width = img1_arr.shape[1]
+    R = img1_arr[:, :, 0]-img2_arr[:, :, 0]
+    G = img1_arr[:, :, 1]-img2_arr[:, :, 1]
+    B = img1_arr[:, :, 2]-img2_arr[:, :, 2]
+    mser = R*R
+    mseg = G*G
+    mseb = B*B
+    sum = mser.sum()+mseb.sum()+mseg.sum()
+    mse = sum/(height*width*3)
+    psnr = 10*math.log(255*255/mse, 10)
+    return psnr
 
