@@ -15,12 +15,12 @@ import time
 class SRCNN(object):
     def __init__(self,
                  sess,
-                 image_size=33,
-                 label_size=21,
-                 batch_size=128,
-                 c_dim=1,
-                 checkpoint_dir=None,
-                 sample_dir=None):
+                 image_size,
+                 label_size,
+                 batch_size,
+                 c_dim,
+                 checkpoint_dir,
+                 sample_dir):
         self.sess = sess
         self.is_grayscale = (c_dim == 1)
         self.image_size = image_size
@@ -70,7 +70,11 @@ class SRCNN(object):
 
         counter = 0  # 输出判断数
         start_time = time.time()
-
+        # 加载训练数据
+        if self.load(config.checkpoint_dir):
+            print("[*] Load SUCCESS")
+        else:
+            print("[!] Load Failed")
         if config.is_train:
             print("Train....")
             batch_index = len(train_data) // config.batch_size
@@ -87,11 +91,6 @@ class SRCNN(object):
                         self.save(config.checkpoint_dir, counter)
         else:
             print("Test...")
-            if self.load(config.checkpoint_dir):
-                print("[*] Load SUCCESS")
-            else:
-                print("[!] Load Failed")
-
             result = self.pred.eval({self.images: train_data, self.labels: train_label})
             result = merge(result, [nx, ny])
             result = result.squeeze()   # squeese():把 result 的 ? 维度删除
