@@ -7,6 +7,7 @@ import os
 import glob
 from PIL import Image
 import math
+
 """
 :Author: 陈浩
 :Date: 2018/11/23
@@ -30,7 +31,7 @@ def input_setup(sess, config):
 
     sub_input_sequence = []
     sub_label_sequence = []
-    padding = abs(config.image_size - config.label_size)/2
+    padding = abs(config.image_size - config.label_size) / 2
 
     if config.is_train:
         for i in range(len(data)):
@@ -40,11 +41,11 @@ def input_setup(sess, config):
             else:
                 h, w = input_.shape
 
-            for x in range(0, h-config.image_size+1, config.stride):
-                for y in range(0, w-config.image_size+1, config.stride):
-                    sub_input = input_[x: x+config.image_size, y:y+config.image_size]  # [33*33]
-                    sub_label = label_[x+int(padding):x+int(padding)+config.label_size,
-                                         y+int(padding):y+int(padding)+config.label_size]   # [21*21]
+            for x in range(0, h - config.image_size + 1, config.stride):
+                for y in range(0, w - config.image_size + 1, config.stride):
+                    sub_input = input_[x: x + config.image_size, y:y + config.image_size]  # [33*33]
+                    sub_label = label_[x + int(padding):x + int(padding) + config.label_size,
+                                y + int(padding):y + int(padding) + config.label_size]  # [21*21]
 
                     sub_input = sub_input.reshape([config.image_size, config.image_size, 1])
                     sub_label = sub_label.reshape([config.label_size, config.label_size, 1])
@@ -75,7 +76,7 @@ def input_setup(sess, config):
                 sub_label_sequence.append(sub_label)
 
     arrdate = np.asarray(sub_input_sequence)  # [?, 33, 33, 1]
-    arrlabel = np.asarray(sub_label_sequence)   # [?, 21, 21, 1]
+    arrlabel = np.asarray(sub_label_sequence)  # [?, 21, 21, 1]
     save_data(sess, arrdate, arrlabel)
 
     if not config.is_train:
@@ -89,10 +90,10 @@ def pre_imdata(sess, dataset):
     :return: 图像路径集合
     """
     if FLAGS.is_train:
-        data_dir = os.path.join(os.getcwd(), dataset)   # os.getcwd() 获取当前绝对路径
+        data_dir = os.path.join(os.getcwd(), dataset)  # os.getcwd() 获取当前绝对路径
     else:
         data_dir = os.path.join(os.sep, os.path.join(os.getcwd(), dataset), "Set14")  # os.sep 适配不同系统的路径符号
-    data = glob.glob(os.path.join(data_dir, "*.bmp"))   # glob.glob() 查询对应路径的数据
+    data = glob.glob(os.path.join(data_dir, "*.bmp"))  # glob.glob() 查询对应路径的数据
     return data
 
 
@@ -116,8 +117,8 @@ def preprocess(path, scale=3):
     nearest is order=0, 
     and cubic is the default (order=3).
     """
-    input_ = scipy.ndimage.interpolation.zoom(label_, (1./scale))
-    input_ = scipy.ndimage.interpolation.zoom(input_, (scale/1.))
+    input_ = scipy.ndimage.interpolation.zoom(label_, (1. / scale))
+    input_ = scipy.ndimage.interpolation.zoom(input_, (scale / 1.))
 
     return input_, label_
 
@@ -158,11 +159,11 @@ def merge(images, size):
     :Content: 图像块合并
     """
     h, w = images.shape[1], images.shape[2]
-    img = np.zeros((h*size[0], w*size[1],1))
+    img = np.zeros((h * size[0], w * size[1], 1))
     for index, image in enumerate(images):
         i = index % size[1]
         j = index // size[1]
-        img[h*j:h*j+h, w*i:w*i+w, :] = image
+        img[h * j:h * j + h, w * i:w * i + w, :] = image
     return img
 
 
@@ -206,7 +207,7 @@ def modcrop(image, scale=3):
         label_ = image[:h, :w]
     return label_
 
-
+# 彩色图像PSNR计算
 def img_psnr(img1, img2):
     """
     :param img1: 源图片路径
@@ -217,14 +218,29 @@ def img_psnr(img1, img2):
     img2_arr = np.array(Image.open(img2), dtype=float)
     height = img1_arr.shape[0]
     width = img1_arr.shape[1]
-    R = img1_arr[:, :, 0]-img2_arr[:, :, 0]
-    G = img1_arr[:, :, 1]-img2_arr[:, :, 1]
-    B = img1_arr[:, :, 2]-img2_arr[:, :, 2]
-    mser = R*R
-    mseg = G*G
-    mseb = B*B
-    sum = mser.sum()+mseb.sum()+mseg.sum()
-    mse = sum/(height*width*3)
-    psnr = 10*math.log(255*255/mse, 10)
+    R = img1_arr[:, :, 0] - img2_arr[:, :, 0]
+    G = img1_arr[:, :, 1] - img2_arr[:, :, 1]
+    B = img1_arr[:, :, 2] - img2_arr[:, :, 2]
+    mser = R * R
+    mseg = G * G
+    mseb = B * B
+    sum = mser.sum() + mseb.sum() + mseg.sum()
+    mse = sum / (height * width * 3)
+    psnr = 10 * math.log(255 * 255 / mse, 10)
     return psnr
 
+# 灰度图像PSNR计算
+def gray_img_psnr(img1, img2):
+    # 彩色图像转化为灰度图像公式：Gray = R*0.299 + G*0.587 + B*0.114
+    img1_arr = np.array(Image.open(img1).convert("L"), dtype=float)
+    img2_arr =Image.open(img2)
+    img2_arr =np.array(img2_arr.resize((512,512), Image.ANTIALIAS), dtype=float)
+
+    differ = np.abs(img1_arr-img2_arr)
+    sum = np.sqrt(differ).sum()
+    psnr = 20*np.log10(255/sum)
+    return psnr
+
+if __name__ == '__main__':
+    psnr = gray_img_psnr("./Test/Set5/baby_GT.bmp", "./sample/text_image0.png")
+    print(psnr)
